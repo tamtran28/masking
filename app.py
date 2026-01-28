@@ -5,8 +5,11 @@ import random
 import string
 import io
 
+import pyexcel as pe
+
+# ================= CONFIG =================
 st.set_page_config(page_title="Data Masking Tool", layout="centered")
-st.title("🔐 Tool tự động ẩn dữ liệu nhạy cảm")
+st.title("🔐 Tool tự động ẩn dữ liệu nhạy cảm (hỗ trợ XLS hàng loạt)")
 
 # ================= FUNCTIONS =================
 def mask_string(val):
@@ -40,35 +43,39 @@ def auto_mask(series):
         return series.apply(mask_number)
     return series.apply(mask_string)
 
+def read_xls_with_pyexcel(uploaded_file):
+    sheet = pe.get_sheet(file_type="xls", file_content=uploaded_file.read())
+    data = sheet.to_array()
+    return pd.DataFrame(data[1:], columns=data[0])
+
 # ================= UPLOAD =================
 uploaded_file = st.file_uploader(
-    "📂 Upload file (CSV / XLSX)",
+    "📂 Upload file (CSV / XLSX / XLS – xử lý tự động)",
     type=["csv", "xlsx", "xls"]
 )
 
 if uploaded_file:
     file_name = uploaded_file.name.lower()
 
-    # -------- HANDLE XLS --------
-    if file_name.endswith(".xls"):
-        st.error(
-            "❌ File .xls (Excel 97–2003) không được hỗ trợ trên hệ thống hiện tại.\n\n"
-            "👉 Vui lòng mở file và **Save As → .xlsx** rồi upload lại."
-        )
-        st.stop()
-
-    # -------- READ FILE --------
+    # ---------- READ FILE ----------
     if file_name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
+
     elif file_name.endswith(".xlsx"):
         df = pd.read_excel(uploaded_file, engine="openpyxl")
+
+    elif file_name.endswith(".xls"):
+        df = read_xls_with_pyexcel(uploaded_file)
+        st.info("ℹ️ File .xls đã được tự động convert sang DataFrame")
+
     else:
-        st.error("❌ Định dạng file không hợp lệ")
+        st.error("❌ Định dạng file không được hỗ trợ")
         st.stop()
 
     st.subheader("📄 Preview dữ liệu ban đầu")
     st.dataframe(df.head())
 
+    # ---------- COLUMN INPUT ----------
     column_name = st.text_input(
         "✏️ Nhập TÊN CỘT cần ẩn dữ liệu (đúng 100%)"
     )
@@ -102,11 +109,12 @@ if uploaded_file:
                 st.subheader("✅ Preview sau khi ẩn")
                 st.dataframe(df_masked.head())
 
+                # ---------- EXPORT ----------
                 output = io.BytesIO()
                 df_masked.to_excel(output, index=False)
 
                 st.download_button(
-                    "⬇️ Download file đã ẩn dữ liệu",
+                    "⬇️ Download file đã ẩn dữ liệu (XLSX)",
                     data=output.getvalue(),
                     file_name="masked_data.xlsx",
                     mime="application/octet-stream"
