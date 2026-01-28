@@ -44,7 +44,7 @@ def auto_mask(series):
 # ---------- UPLOAD FILE ----------
 uploaded_file = st.file_uploader(
     "📂 Upload file (CSV hoặc Excel)",
-    type=["csv", "xlsx"]
+    type=["csv", "xlsx", "xls"]
 )
 
 if uploaded_file:
